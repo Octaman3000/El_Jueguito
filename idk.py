@@ -22,10 +22,10 @@ FramePerSec = pygame.time.Clock()
 displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Game")
 
-class Projectile(pygame.sprite.Sprite):
+class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
     def __init__(self, projectile_type, direction):
         super().__init__()
-        if projectile_type == "bullet":
+        if projectile_type == "bullet": #las balas se usan para casi todo
             self.surf = pygame.Surface((2, 2))
             self.surf.fill((255, 0, 0))
             self.rect = self.surf.get_rect()
@@ -34,12 +34,19 @@ class Projectile(pygame.sprite.Sprite):
             self.vel = direction * 2000
             self.acc = vec(0, 0)
             
-
     def move(self):
+        hits = pygame.sprite.spritecollide(self, platforms, False)
+        for hit in hits:
+            if self.vel.y > 0:
+                self.kill()
+            if self.vel.y < 0:
+                self.kill()
+
         self.pos += self.vel * dt
         self.rect.center = self.pos
 
-class Player(pygame.sprite.Sprite):
+
+class Player(pygame.sprite.Sprite): #obviamente el jugador
     def __init__(self):
         super().__init__()
         self.surf = pygame.Surface((30, 40))
@@ -73,34 +80,32 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         self.rect.midbottom = self.pos
 
-        hits = pygame.sprite.spritecollide(self, platforms, False)
-        for hit in hits:                                              #eje Y
+        side_hits = pygame.sprite.spritecollide(self, walls, False)
+        for hit in side_hits:
+            if self.vel.x > 0:
+                self.vel.x = 0
+                self.rect.midbottom = ((hit.rect.left - (self.rect.width / 2)), self.pos.y)
+            if self.vel.x < 0:
+                self.vel.x = 0
+                self.rect.midbottom = ((hit.rect.right + (self.rect.width / 2)), self.pos.y)
+
+        top_bottom_hits = pygame.sprite.spritecollide(self, floors_roofs, False)
+        for hit in top_bottom_hits:
             if self.vel.y > 0:
                 self.pos.y = hit.rect.top + 1
                 self.vel.y = 0
                 self.rect.midbottom = self.pos
-
             if self.vel.y < 0:
                 self.pos.y = hit.rect.bottom + self.rect.height
                 self.vel.y = 0
                 self.rect.midbottom = self.pos
 
-            if self.vel.x > 0:
-                self.rect.right = hit.rect.left
-                self.vel.x = 0
-            
-            if self.vel.x < 0:
-                self.rect.left = hit.rect.right
-                self.vel.x = 0
-
-            self.rect.midbottom = self.pos
-        
     def jump(self):
         hits = pygame.sprite.spritecollide(self, platforms, False)
         if hits:
             self.vel.y = -1100
     
-    def drop(self):
+    def drop(self):                                
         self.vel.y = 1200 
     
     def shoot(self, gun):
@@ -116,6 +121,7 @@ class Player(pygame.sprite.Sprite):
             bull = Projectile("bullet", direction)
             all_sprites.add(bull)
             projectiles.add(bull)
+
         if gun == "shotgun":
             player_pos = vec(P1.rect.center)
             mouse_pos = vec(pygame.mouse.get_pos())
@@ -143,10 +149,16 @@ class Platform(pygame.sprite.Sprite):
  
 P1 = Player()
 
+projectiles = pygame.sprite.Group()
+non_projectiles = pygame.sprite.Group()
 platforms = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
+
 all_sprites.add(P1)
-projectiles = pygame.sprite.Group()
+non_projectiles.add(P1)
+
+floors_roofs = pygame.sprite.Group()
+walls = pygame.sprite.Group()
 
 for plat in level1["platforms"]:
     x = plat[0]
@@ -158,6 +170,12 @@ for plat in level1["platforms"]:
 
     platforms.add(new_plat)
     all_sprites.add(new_plat)
+    non_projectiles.add(new_plat)
+
+    if w > h:
+        floors_roofs.add(new_plat)
+    else:
+        walls.add(new_plat)
 
 while True:
     for event in pygame.event.get():
@@ -171,6 +189,7 @@ while True:
                 P1.drop()
         if event.type == pygame.MOUSEBUTTONDOWN:
             P1.shoot("shotgun")
+
     displaysurface.fill((0,0,0))
 
     for entity in all_sprites:
@@ -179,7 +198,6 @@ while True:
         entity.move()
         displaysurface.blit(entity.surf, entity.rect)
     
-    #if 
     pygame.display.update()
     dt = FramePerSec.tick(FPS) / 1000
     P1.move()
