@@ -30,7 +30,7 @@ class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
             self.surf.fill((255, 0, 0))
             self.rect = self.surf.get_rect()
 
-            self.pos = vec(P1.pos)
+            self.pos = vec(P1.pos + (0, -40))
             self.vel = direction * 2000
             self.acc = vec(0, 0)
             
@@ -84,10 +84,12 @@ class Player(pygame.sprite.Sprite): #obviamente el jugador
         for hit in side_hits:
             if self.vel.x > 0:
                 self.vel.x = 0
-                self.rect.midbottom = ((hit.rect.left - (self.rect.width / 2)), self.pos.y)
+                self.pos.x = hit.rect.left - (self.rect.width / 2)
+                self.rect.midbottom = self.pos
             if self.vel.x < 0:
                 self.vel.x = 0
-                self.rect.midbottom = ((hit.rect.right + (self.rect.width / 2)), self.pos.y)
+                self.pos.x = hit.rect.right + (self.rect.width / 2)
+                self.rect.midbottom = self.pos
 
         top_bottom_hits = pygame.sprite.spritecollide(self, floors_roofs, False)
         for hit in top_bottom_hits:
@@ -146,7 +148,7 @@ class Platform(pygame.sprite.Sprite):
         self.surf.fill((255, 0, 0))
         self.rect = self.surf.get_rect()
         self.rect.topleft = (pos_x, pos_y)
- 
+
 P1 = Player()
 
 projectiles = pygame.sprite.Group()
