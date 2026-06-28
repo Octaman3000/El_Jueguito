@@ -5,9 +5,15 @@ import os
 import sys
 import json
 
-base_path = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+def get_path(filename):
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.join(os.path.dirname(sys.executable), "_internal")
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
 
-json_path = os.path.join(base_path, "level1.json")
+    return os.path.join(base_path, filename)
+
+json_path = get_path("level1.json")
 
 with open(json_path, "r", encoding="utf-8") as f:
     level1 = json.load(f)
