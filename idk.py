@@ -16,11 +16,12 @@ FRIC = -12
 FPS = 165
 PROJ_LIMIT = 100
 GRAVITY = 2000
+CURRENT_GUN = "pistol"
 
 FramePerSec = pygame.time.Clock()
 
 displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Game")
+pygame.display.set_caption("IDK")
 
 class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
     def __init__(self, projectile_type, direction):
@@ -33,7 +34,7 @@ class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
             self.pos = vec(P1.pos + (0, -40))
             self.vel = direction * 2000
             self.acc = vec(0, 0)
-            
+
     def move(self):
         hits = pygame.sprite.spritecollide(self, platforms, False)
         for hit in hits:
@@ -44,7 +45,6 @@ class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
 
         self.pos += self.vel * dt
         self.rect.center = self.pos
-
 
 class Player(pygame.sprite.Sprite): #obviamente el jugador
     def __init__(self):
@@ -140,7 +140,6 @@ class Player(pygame.sprite.Sprite): #obviamente el jugador
                 all_sprites.add(bull)
                 projectiles.add(bull)
 
-
 class Platform(pygame.sprite.Sprite):
     def __init__(self, width, height, pos_x, pos_y):
         super().__init__()
@@ -179,6 +178,16 @@ for plat in level1["platforms"]:
     else:
         walls.add(new_plat)
 
+#utility functions (basically all the shit that for some reason doesn't work inside classes)
+def switch(weapon):
+        global CURRENT_GUN
+
+        if weapon == "pistol":
+            CURRENT_GUN = "pistol"
+        if weapon == "shotgun":
+            CURRENT_GUN = "shotgun"
+
+#Main game loop
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -189,8 +198,14 @@ while True:
                 P1.jump()
             if event.key == pygame.K_s:
                 P1.drop()
+            
+            if event.key == pygame.K_2:
+                switch("pistol")
+            if event.key == pygame.K_3:
+                switch("shotgun")
+
         if event.type == pygame.MOUSEBUTTONDOWN:
-            P1.shoot("shotgun")
+            P1.shoot(CURRENT_GUN)
 
     displaysurface.fill((0,0,0))
 
