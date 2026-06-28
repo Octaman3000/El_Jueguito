@@ -1,86 +1,106 @@
 import pygame
 from pygame.locals import *
+import random
+import os
 import sys
 import json
-import random
-with open('I:/IDK/level1.json', "r") as f:
+
+base_path = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+
+json_path = os.path.join(base_path, "level1.json")
+
+with open(json_path, "r", encoding="utf-8") as f:
     level1 = json.load(f)
 
 pygame.init()
-vec = pygame.math.Vector2
 
-HEIGHT = 1080
-WIDTH = 1920
-ACC = 2500
-FRIC = -12
-FPS = 165
-PROJ_LIMIT = 100
-GRAVITY = 2000
-CURRENT_GUN = "pistol"
+class Game:
+    def __init__(self):
+        self.HEIGHT = 1080
+        self.WIDTH = 1920
+        self.ACC = 2500
+        self.FRIC = -12
+        self.FPS = 165
+        self.PROJ_LIMIT = 100
+        self.GRAVITY = 2000
+        self.CURRENT_GUN = "pistol"
 
-FramePerSec = pygame.time.Clock()
+        self.projectiles = pygame.sprite.Group()
+        self.non_projectiles = pygame.sprite.Group()
+        self.platforms = pygame.sprite.Group()
+        self.all_sprites = pygame.sprite.Group()
+        self.floors_roofs = pygame.sprite.Group()
+        self.walls = pygame.sprite.Group()
 
-displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("IDK")
+        self.clock = pygame.time.Clock()
+
+        self.vec = pygame.math.Vector2
+
+        self.displaysurface = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+        pygame.display.set_caption("IDK")
 
 class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
-    def __init__(self, projectile_type, direction):
+    def __init__(self, game, projectile_type, direction):
+        self.game = game
+        
         super().__init__()
+
         if projectile_type == "bullet": #las balas se usan para casi todo
             self.surf = pygame.Surface((2, 2))
             self.surf.fill((255, 0, 0))
             self.rect = self.surf.get_rect()
 
-            self.pos = vec(P1.pos + (0, -40))
+            self.pos = self.game.vec(self.game.player.pos) + self.game.vec(0, -40)
             self.vel = direction * 2000
-            self.acc = vec(0, 0)
+            self.acc = self.game.vec(0, 0)
 
     def move(self):
-        hits = pygame.sprite.spritecollide(self, platforms, False)
+        hits = pygame.sprite.spritecollide(self, self.game.platforms, False)
         for hit in hits:
             if self.vel.y > 0:
                 self.kill()
             if self.vel.y < 0:
                 self.kill()
 
-        self.pos += self.vel * dt
+        self.pos += self.vel * self.game.dt
         self.rect.center = self.pos
 
 class Player(pygame.sprite.Sprite): #obviamente el jugador
-    def __init__(self):
+    def __init__(self, game):
+        self.game = game
         super().__init__()
         self.surf = pygame.Surface((30, 40))
         self.surf.fill((128, 255, 40))
         self.rect = self.surf.get_rect()
 
-        self.pos = vec((level1["spawn"]))
-        self.vel = vec(0, 0)
-        self.acc = vec(0, 0)
+        self.pos = self.game.vec((level1["spawn"]))
+        self.vel = self.game.vec(0, 0)
+        self.acc = self.game.vec(0, 0)
 
     def move(self):
-        self.acc = vec(0, GRAVITY)
+        self.acc = self.game.vec(0, self.game.GRAVITY)
 
         pressed_keys = pygame.key.get_pressed()
 
         if pressed_keys[K_a]:
-            self.acc.x = -ACC
+            self.acc.x = - self.game.ACC
         if pressed_keys[K_d]:
-            self.acc.x = ACC
+            self.acc.x = self.game.ACC
 
-        self.acc.x += self.vel.x * FRIC
-        self.vel += self.acc * dt
-        self.pos += self.vel * dt
+        self.acc.x += self.vel.x * self.game.FRIC
+        self.vel += self.acc * self.game.dt
+        self.pos += self.vel * self.game.dt
 
-        if self.pos.x > WIDTH:
+        if self.pos.x > self.game.WIDTH:
             self.pos.x = 0
         if self.pos.x < 0:
-            self.pos.x = WIDTH
+            self.pos.x = self.game.WIDTH
         
 
     def update(self):
         self.rect.midbottom = self.pos
 
-        side_hits = pygame.sprite.spritecollide(self, walls, False)
+        side_hits = pygame.sprite.spritecollide(self, self.game.walls, False)
         for hit in side_hits:
             if self.vel.x > 0:
                 self.vel.x = 0
@@ -91,7 +111,7 @@ class Player(pygame.sprite.Sprite): #obviamente el jugador
                 self.pos.x = hit.rect.right + (self.rect.width / 2)
                 self.rect.midbottom = self.pos
 
-        top_bottom_hits = pygame.sprite.spritecollide(self, floors_roofs, False)
+        top_bottom_hits = pygame.sprite.spritecollide(self, self.game.floors_roofs, False)
         for hit in top_bottom_hits:
             if self.vel.y > 0:
                 self.pos.y = hit.rect.top + 1
@@ -103,7 +123,7 @@ class Player(pygame.sprite.Sprite): #obviamente el jugador
                 self.rect.midbottom = self.pos
 
     def jump(self):
-        hits = pygame.sprite.spritecollide(self, platforms, False)
+        hits = pygame.sprite.spritecollide(self, self.game.platforms, False)
         if hits:
             self.vel.y = -1100
     
@@ -112,21 +132,21 @@ class Player(pygame.sprite.Sprite): #obviamente el jugador
     
     def shoot(self, gun):
         if gun == "pistol":
-            player_pos = vec(P1.rect.center)
-            mouse_pos = vec(pygame.mouse.get_pos())
+            player_pos = self.game.vec(self.game.player.rect.center)
+            mouse_pos = self.game.vec(pygame.mouse.get_pos())
 
             base_direction = mouse_pos - player_pos
             base_direction = base_direction.normalize()
             
             direction = base_direction
 
-            bull = Projectile("bullet", direction)
-            all_sprites.add(bull)
-            projectiles.add(bull)
+            bull = Projectile(self.game, "bullet", direction)
+            self.game.all_sprites.add(bull)
+            self.game.projectiles.add(bull)
 
         if gun == "shotgun":
-            player_pos = vec(P1.rect.center)
-            mouse_pos = vec(pygame.mouse.get_pos())
+            player_pos = self.game.vec(self.game.player.rect.center)
+            mouse_pos = self.game.vec(pygame.mouse.get_pos())
             
             base_direction = mouse_pos - player_pos
             base_direction = base_direction.normalize()
@@ -136,9 +156,9 @@ class Player(pygame.sprite.Sprite): #obviamente el jugador
 
                 direction = base_direction.rotate(spread)
 
-                bull = Projectile("bullet", direction)
-                all_sprites.add(bull)
-                projectiles.add(bull)
+                bull = Projectile(self.game, "bullet", direction)
+                self.game.all_sprites.add(bull)
+                self.game.projectiles.add(bull)
 
 class Platform(pygame.sprite.Sprite):
     def __init__(self, width, height, pos_x, pos_y):
@@ -148,18 +168,9 @@ class Platform(pygame.sprite.Sprite):
         self.rect = self.surf.get_rect()
         self.rect.topleft = (pos_x, pos_y)
 
-P1 = Player()
-
-projectiles = pygame.sprite.Group()
-non_projectiles = pygame.sprite.Group()
-platforms = pygame.sprite.Group()
-all_sprites = pygame.sprite.Group()
-
-all_sprites.add(P1)
-non_projectiles.add(P1)
-
-floors_roofs = pygame.sprite.Group()
-walls = pygame.sprite.Group()
+game = Game()
+game.player = Player(game)
+game.all_sprites.add(game.player)
 
 for plat in level1["platforms"]:
     x = plat[0]
@@ -169,23 +180,21 @@ for plat in level1["platforms"]:
 
     new_plat = Platform(w, h, x, y)
 
-    platforms.add(new_plat)
-    all_sprites.add(new_plat)
-    non_projectiles.add(new_plat)
+    game.platforms.add(new_plat)
+    game.all_sprites.add(new_plat)
+    game.non_projectiles.add(new_plat)
 
     if w > h:
-        floors_roofs.add(new_plat)
+        game.floors_roofs.add(new_plat)
     else:
-        walls.add(new_plat)
+        game.walls.add(new_plat)
 
 #utility functions (basically all the shit that for some reason doesn't work inside classes)
-def switch(weapon):
-        global CURRENT_GUN
-
+def switch(game, weapon):
         if weapon == "pistol":
-            CURRENT_GUN = "pistol"
+            game.CURRENT_GUN = "pistol"
         if weapon == "shotgun":
-            CURRENT_GUN = "shotgun"
+            game.CURRENT_GUN = "shotgun"
 
 #Main game loop
 while True:
@@ -195,28 +204,29 @@ while True:
             sys.exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w:
-                P1.jump()
+                game.player.jump()
             if event.key == pygame.K_s:
-                P1.drop()
+                game.player.drop()
             
             if event.key == pygame.K_2:
-                switch("pistol")
+                switch(game, "pistol")
             if event.key == pygame.K_3:
-                switch("shotgun")
+                switch(game, "shotgun")
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            P1.shoot(CURRENT_GUN)
+            game.player.shoot(game.CURRENT_GUN)
 
-    displaysurface.fill((0,0,0))
+    game.displaysurface.fill((0,0,0))
 
-    for entity in all_sprites:
-        displaysurface.blit(entity.surf, entity.rect)
-    for entity in projectiles:
+    for entity in game.all_sprites:
+        game.displaysurface.blit(entity.surf, entity.rect)
+    for entity in game.projectiles:
         entity.move()
-        displaysurface.blit(entity.surf, entity.rect)
+        game.displaysurface.blit(entity.surf, entity.rect)
     
     pygame.display.update()
-    dt = FramePerSec.tick(FPS) / 1000
-    P1.move()
-    P1.update()
+    game.dt = game.clock.tick(game.FPS) / 1000
+
+    game.player.move()
+    game.player.update()
 
