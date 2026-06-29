@@ -20,10 +20,12 @@ with open(json_path, "r", encoding="utf-8") as f:
 
 pygame.init()
 
+font = pygame.font.Font(None, 40)
+
 class Game:
     def __init__(self):
-        self.HEIGHT = 1080
-        self.WIDTH = 1920
+        self.HEIGHT = 720
+        self.WIDTH = 1280
         self.ACC = 2500
         self.FRIC = -12
         self.FPS = 165
@@ -37,13 +39,46 @@ class Game:
         self.all_sprites = pygame.sprite.Group()
         self.floors_roofs = pygame.sprite.Group()
         self.walls = pygame.sprite.Group()
+        self.buttons = pygame.sprite.Group()
 
         self.clock = pygame.time.Clock()
 
         self.vec = pygame.math.Vector2
 
-        self.displaysurface = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+        self.displaysurface = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.SCALED | pygame.FULLSCREEN)
         pygame.display.set_caption("IDK")
+
+class Button():
+    def __init__(self, x, y, width, height, game, buttonText='Button', onclickFunction=None):
+        self.game = game
+
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+        self.onclickFunction = onclickFunction
+
+        self.buttonRect = pygame.Rect(x, y, width, height)
+
+        self.text = font.render(buttonText, True, (0, 0, 0))
+
+    def process(self):
+        mouse_pos = pygame.mouse.get_pos()
+
+        color = (255, 255, 255)
+
+        if self.buttonRect.collidepoint(mouse_pos):
+            color = (150, 150, 150)
+
+            if pygame.mouse.get_pressed()[0]:
+                self.onclickFunction()
+
+        pygame.draw.rect(self.game.displaysurface, color, self.buttonRect)
+
+        text_rect = self.text.get_rect(center=self.buttonRect.center)
+
+        self.game.displaysurface.blit(self.text, text_rect)
 
 class Projectile(pygame.sprite.Sprite): #esto son los proyectiles en general
     def __init__(self, game, projectile_type, direction):
@@ -175,6 +210,21 @@ class Platform(pygame.sprite.Sprite):
         self.rect.topleft = (pos_x, pos_y)
 
 game = Game()
+
+def quit_game():
+    pygame.quit()
+    sys.exit()
+
+exit_button = Button(
+    100,
+    100,
+    300,
+    100,
+    game,
+    "EXIT",
+    quit_game
+)
+
 game.player = Player(game)
 game.all_sprites.add(game.player)
 
@@ -209,6 +259,10 @@ while True:
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+                
             if event.key == pygame.K_w:
                 game.player.jump()
             if event.key == pygame.K_s:
@@ -229,8 +283,11 @@ while True:
     for entity in game.projectiles:
         entity.move()
         game.displaysurface.blit(entity.surf, entity.rect)
-    
+
+    exit_button.process()
+
     pygame.display.update()
+
     game.dt = game.clock.tick(game.FPS) / 1000
 
     game.player.move()
