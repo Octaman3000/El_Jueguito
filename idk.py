@@ -32,6 +32,7 @@ class Game:
         self.PROJ_LIMIT = 100
         self.GRAVITY = 2000
         self.CURRENT_GUN = "pistol"
+        self.menu_open = False
 
         self.projectiles = pygame.sprite.Group()
         self.non_projectiles = pygame.sprite.Group()
@@ -39,7 +40,7 @@ class Game:
         self.all_sprites = pygame.sprite.Group()
         self.floors_roofs = pygame.sprite.Group()
         self.walls = pygame.sprite.Group()
-        self.buttons = pygame.sprite.Group()
+        self.menu_buttons = []
 
         self.clock = pygame.time.Clock()
 
@@ -57,6 +58,7 @@ class Button():
         self.width = width
         self.height = height
 
+        self.clicked = False
         self.onclickFunction = onclickFunction
 
         self.buttonRect = pygame.Rect(x, y, width, height)
@@ -65,14 +67,18 @@ class Button():
 
     def process(self):
         mouse_pos = pygame.mouse.get_pos()
+        mouse_pressed = pygame.mouse.get_pressed()[0]
 
         color = (255, 255, 255)
 
         if self.buttonRect.collidepoint(mouse_pos):
             color = (150, 150, 150)
 
-            if pygame.mouse.get_pressed()[0]:
+            if mouse_pressed and not self.clicked:
+                self.clicked = True
                 self.onclickFunction()
+            if not mouse_pressed:
+                self.clicked = False
 
         pygame.draw.rect(self.game.displaysurface, color, self.buttonRect)
 
@@ -211,19 +217,10 @@ class Platform(pygame.sprite.Sprite):
 
 game = Game()
 
-def quit_game():
-    pygame.quit()
-    sys.exit()
 
-exit_button = Button(
-    100,
-    100,
-    300,
-    100,
-    game,
-    "EXIT",
-    quit_game
-)
+
+
+
 
 game.player = Player(game)
 game.all_sprites.add(game.player)
@@ -252,29 +249,53 @@ def switch(game, weapon):
         if weapon == "shotgun":
             game.CURRENT_GUN = "shotgun"
 
-#Main game loop
+def menu_toggle(game):
+    game.menu_open = not game.menu_open
+
+    if game.menu_open:
+        game.menu_buttons = []
+
+        return_button = Button(602, 345, 70, 30, game, "Return", lambda: menu_toggle(game))
+        exit_button = Button(100, 100, 300, 100, game, "EXIT", quit_game)
+
+        game.menu_buttons.append(exit_button)
+        game.menu_buttons.append(return_button)
+
+    elif game.menu_open == False:
+        game.menu_buttons.clear()
+
+def quit_game():
+    pygame.quit()
+    sys.exit()
+
+#=========================================================
+#MAIN GAME LOOP - DO NOT TOUCH UNLESS NECESSARY
+#=========================================================
+
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
+        
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-                sys.exit()
+                menu_toggle(game)
+                    
+        if not game.menu_open:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w:
+                    game.player.jump()
+                if event.key == pygame.K_s:
+                    game.player.drop()
                 
-            if event.key == pygame.K_w:
-                game.player.jump()
-            if event.key == pygame.K_s:
-                game.player.drop()
-            
-            if event.key == pygame.K_2:
-                switch(game, "pistol")
-            if event.key == pygame.K_3:
-                switch(game, "shotgun")
+                if event.key == pygame.K_2:
+                    switch(game, "pistol")
+                if event.key == pygame.K_3:
+                    switch(game, "shotgun")
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            game.player.shoot(game.CURRENT_GUN)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                game.player.shoot(game.CURRENT_GUN)
 
     game.displaysurface.fill((0,0,0))
 
@@ -283,13 +304,16 @@ while True:
     for entity in game.projectiles:
         entity.move()
         game.displaysurface.blit(entity.surf, entity.rect)
-
-    exit_button.process()
+    
+    if game.menu_open:
+        for button in game.menu_buttons:
+            button.process()
 
     pygame.display.update()
 
     game.dt = game.clock.tick(game.FPS) / 1000
 
-    game.player.move()
-    game.player.update()
+    if not game.menu_open:
+        game.player.move()
+        game.player.update()
 
